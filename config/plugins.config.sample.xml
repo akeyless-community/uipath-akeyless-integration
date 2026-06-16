@@ -1,0 +1,4 @@
+<!-- Sample Orchestrator plugin registration for UiPath.Orchestrator.dll.config -->
+<appSettings>
+  <add key="Plugins.SecureStores" value="UiPath.Akeyless.SecureStore.dll" />
+</appSettings>

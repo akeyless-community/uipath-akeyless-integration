@@ -1,0 +1,77 @@
+name: Build & Test
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+  release:
+    types: [ published ]
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+
+      - name: Restore
+        run: dotnet restore UiPath.Akeyless.SecureStore.sln
+
+      - name: Build
+        run: dotnet build UiPath.Akeyless.SecureStore.sln -c Release --no-restore
+
+      - name: Test
+        run: dotnet test UiPath.Akeyless.SecureStore.sln -c Release --no-build --verbosity normal
+
+      - name: Upload plugin DLL
+        uses: actions/upload-artifact@v4
+        if: success()
+        with:
+          name: UiPath.Akeyless.SecureStore
+          path: |
+            src/UiPath.Akeyless.SecureStore/bin/Release/UiPath.Akeyless.SecureStore.dll
+            src/UiPath.Akeyless.SecureStore/bin/Release/UiPath.Akeyless.SecureStore.deps.json
+            README.md
+            docs/
+            config/
+
+  release:
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Build release package
+        run: |
+          dotnet build UiPath.Akeyless.SecureStore.sln -c Release
+          mkdir -p dist
+          cp src/UiPath.Akeyless.SecureStore/bin/Release/UiPath.Akeyless.SecureStore.dll dist/
+          cp src/UiPath.Akeyless.SecureStore/bin/Release/UiPath.Akeyless.SecureStore.deps.json dist/
+          cp README.md dist/
+          cp -r docs dist/
+          cp -r config dist/
+          cd dist && zip -r ../uipath-akeyless-securestore-${{ github.event.release.tag_name }}.zip .
+
+      - name: Attach release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: uipath-akeyless-securestore-${{ github.event.release.tag_name }}.zip
